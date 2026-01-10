@@ -1,5 +1,5 @@
 export const getMainTs = (title) => {
-    const safeTitle = title.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const safeTitle = title.replace(/'/g, "\\'");
     return `
 import express from 'express';
 import { Devvit } from '@devvit/public-api';
