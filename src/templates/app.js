@@ -1,5 +1,4 @@
 export const getMainTs = (title) => {
-    const safeTitle = title.replace(/'/g, "\\'");
     return `
 import express from 'express';
 import { Devvit } from '@devvit/public-api';
@@ -109,7 +108,7 @@ router.post('/api/save', async (req, res) => {
         // Ensure value is safe to stringify (undefined -> null)
         const safeValue = value === undefined ? null : value;
 
-        await redis.hSet(collection, { [key]: JSON.stringify(safeValue) });
+        await redis.hSet(collection, key, JSON.stringify(safeValue));
         await redis.zAdd(DB_REGISTRY_KEY, { member: collection, score: Date.now() });
         res.json({ success: true, collection, key });
     } catch(e) {
@@ -273,7 +272,7 @@ router.post('/internal/createPost', async (req, res) => {
         }
 
         const post = await reddit.submitCustomPost({
-            title: '${safeTitle}',
+            title: ${JSON.stringify(title)},
             subredditName: subredditName,
             entry: 'default', // matches devvit.json entrypoint
             userGeneratedContent: {
