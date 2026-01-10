@@ -237,10 +237,10 @@ export const websimSocketPolyfill = `
 
                     if (isTaken(displayUsername)) {
                         let counter = 2;
-                        while (isTaken(\`\${originalUsername} (\${counter})\`)) {
+                        while (isTaken(`${originalUsername} (${counter})`)) {
                             counter++;
                         }
-                        displayUsername = \`\${originalUsername} (\${counter})\`;
+                        displayUsername = `${originalUsername} (${counter})`;
                     }
 
                     this.peers[clientId] = {

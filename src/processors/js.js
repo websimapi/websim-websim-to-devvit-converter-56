@@ -26,6 +26,16 @@ export function processJS(jsContent, filename = 'script.js', analyzer) {
     const rootPrefix = depth > 0 ? '../'.repeat(depth) : './';
 
     let ast;
+    // [Fix] Game Loading Hang: Detect image loader failures
+    // Many games use a pattern like `if (index >= urlList.length) return;` which fails to hide the loader if assets 404.
+    // We inject a fallback hideLoader() call.
+    const loaderHangPattern = /if\s*\(\s*([a-zA-Z0-9_]+)\s*>=\s*([a-zA-Z0-9_.]+)\.length\s*\)\s*\{?\s*(?:\/\/.*[\r\n\s]*)?return;?\s*\}?/g;
+    if (loaderHangPattern.test(code)) {
+        code = code.replace(loaderHangPattern, (match, idx, list) => {
+            return `if (${idx} >= ${list}.length) { try { if(typeof hideLoader === 'function') hideLoader(); else if(window.hideLoader) window.hideLoader(); } catch(e){} return; }`;
+        });
+    }
+
     const magic = new MagicString(code);
     let hasChanges = false;
 
@@ -131,7 +141,7 @@ export function processJS(jsContent, filename = 'script.js', analyzer) {
         // 2. import "..."
         // 3. export ... from "..."
         // 4. import("...") (dynamic)
-        const importRegex = /(import\s+(?:[\w\s{},*]+)\s+from\s+['"])([^'"]+)(['"])|(import\s+['"])([^'"]+)(['"])|(from\s+['"])([^'"]+)(['"])|(import\s*\(\s*['"])([^'"]+)(['"]\s*\))/g;
+        const importRegex = /(import\s+(?:[\w\s{},*$]+)\s+from\s+['"])([^'"]+)(['"])|(import\s+['"])([^'"]+)(['"])|(from\s+['"])([^'"]+)(['"])|(import\s*\(\s*['"])([^'"]+)(['"]\s*\))/g;
         let match;
         const originalCode = code; 
         
@@ -149,26 +159,6 @@ export function processJS(jsContent, filename = 'script.js', analyzer) {
                 }
             }
         }
-    }
-
-    // [Fix] Game Loading Hang: Detect image loader failures
-    // Many games use a pattern like `if (index >= urlList.length) return;` which fails to hide the loader if assets 404.
-    // We inject a fallback hideLoader() call.
-    // Also handling tighter minified spacing variants
-    const loaderHangPattern = /if\s*\(\s*([a-zA-Z0-9_]+)\s*>=\s*([a-zA-Z0-9_.]+)\.length\s*\)\s*\{?\s*(?:\/\/.*[\r\n\s]*)?return;?\s*\}?/g;
-    if (loaderHangPattern.test(code)) {
-        code = code.replace(loaderHangPattern, (match, idx, list) => {
-            return `if (${idx} >= ${list}.length) { try { if(typeof hideLoader === 'function') hideLoader(); else if(window.hideLoader) window.hideLoader(); } catch(e){} return; }`;
-        });
-        // We modified code string directly, so we reset MagicString to stay in sync if we were doing more complex ops,
-        // but here we are returning at the end. However, since we mix MagicString and string replacement, we must be careful.
-        // Re-init magic string for the return value or just return code if no other changes pending.
-        // Ideally we should use magic.overwrite, but finding the exact indices for regex match is complex with multiple matches.
-        // For simplicity in this specific processor flow, we'll return the modified code directly if we changed it here,
-        // but we must respect previous changes.
-        // Re-creating MagicString from the potentially modified code:
-        const newMagic = new MagicString(code);
-        return newMagic.toString(); 
     }
 
     // Remotion License Injection for <Player /> components
